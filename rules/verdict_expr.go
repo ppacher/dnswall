@@ -57,7 +57,7 @@ func reject(args ...interface{}) (interface{}, error) {
 
 	if b {
 		return Reject{
-			Code: uint16(code),
+			Code: code,
 		}, nil
 	}
 

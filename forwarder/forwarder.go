@@ -26,7 +26,7 @@ func New(servers []string, conditionals map[string]string) (*Forwarder, error) {
 	}
 
 	for key, val := range conditionals {
-		expr, err := rules.New(val)
+		expr, err := rules.NewExpr(val)
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +47,7 @@ func (f *Forwarder) Serve(ctx context.Context, req *request.Request) (context.Co
 
 	// first, try to find a conditional forwarder
 	for srv, expr := range f.conditionalResolvers {
-		res, err := expr.EvaluateBool(req)
+		res, err := expr.EvaluateBool(req, nil)
 
 		if err == nil && res {
 			resp, err := dns.Exchange(req.Req, srv)

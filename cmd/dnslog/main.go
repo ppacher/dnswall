@@ -5,8 +5,8 @@ import (
 
 	"git.vie.cybertrap.com/ppacher/dnslog/forwarder"
 	logMw "git.vie.cybertrap.com/ppacher/dnslog/log"
+	"git.vie.cybertrap.com/ppacher/dnslog/rules"
 	"git.vie.cybertrap.com/ppacher/dnslog/server"
-	"git.vie.cybertrap.com/ppacher/dnslog/sinkhole"
 	"git.vie.cybertrap.com/ppacher/dnslog/zone"
 )
 
@@ -23,11 +23,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sink, err := sinkhole.New("127.0.0.1", "isSubdomain(request.Name, 'orf.at')")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	z, err := zone.LoadZoneFile("/tmp/zone", "example.com.")
 	if err != nil {
 		log.Fatal(err)
@@ -35,9 +30,17 @@ func main() {
 
 	provider := zone.NewProvider(z)
 
+	r, _ := rules.NewRule("reject(isSubdomain(request.Name, 'orf.at'))")
+	input := []*rules.Rule{
+		r,
+	}
+	output := []*rules.Rule{}
+
+	engine := rules.NewEngine(rules.Accept{}, rules.Accept{}, input, output)
+
 	srv.Use(
 		&logMw.LogMiddleware{},
-		sink,
+		engine,
 		provider,
 		resolver,
 	)

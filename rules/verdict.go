@@ -29,7 +29,7 @@ func (Accept) Type() VerdictType {
 // Reject represents the reject verdict
 type Reject struct {
 	// Code is the RCode to return to the client
-	Code uint16
+	Code int
 }
 
 // Type returns VerdictReject

@@ -1,9 +1,10 @@
 package rules
 
 import (
-	"context"
 	"log"
 	"sync"
+
+	"golang.org/x/net/context"
 
 	"git.vie.cybertrap.com/ppacher/dnslog/request"
 	"github.com/miekg/dns"
@@ -106,12 +107,51 @@ func (ng *Engine) Name() string {
 
 // Serve serves a DNS request by evaluating the INPUT chain
 func (ng *Engine) Serve(ctx context.Context, req *request.Request) (context.Context, *dns.Msg, error) {
-	// TODO: implement
+	verdict, err := ng.input.Verdict(req, nil)
+	if err != nil {
+		return ctx, nil, err
+	}
+
+	switch v := verdict.(type) {
+	case Noop, Accept:
+		// Allow the request to travel down the middleware stack
+		return ctx, nil, nil
+
+	case Reject:
+		resp := req.CreateError(v.Code)
+		return ctx, resp, nil
+
+	case Sinkhole:
+		// TODO(ppacher): create response object and send it back
+		resp := req.CreateError(dns.RcodeNotImplemented)
+		return ctx, resp, nil
+	}
+
 	return nil, nil, nil
 }
 
 // Mangle mangles the response to a DNS request by evaluating the output chain
 func (ng *Engine) Mangle(ctx context.Context, req *request.Request, resp *dns.Msg) error {
-	// TODO: implement
+	verdict, err := ng.output.Verdict(req, resp)
+	if err != nil {
+		return err
+	}
+
+	switch v := verdict.(type) {
+	case Noop, Accept:
+		return nil
+
+	case Reject:
+		resp.Rcode = v.Code
+		resp.Answer = nil
+		resp.Extra = nil
+		return nil
+
+	case Sinkhole:
+		// TODO(ppacher): creat response objcet and send it back
+		resp.Rcode = dns.RcodeNotImplemented
+		return nil
+	}
+
 	return nil
 }

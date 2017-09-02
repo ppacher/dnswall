@@ -102,7 +102,7 @@ func (e *Expr) Verdict(req *request.Request, resp *dns.Msg, ctx ...Context) (Ver
 	}
 
 	v, ok := res.(Verdict)
-	if !ok {
+	if ok {
 		return v, nil
 	}
 
