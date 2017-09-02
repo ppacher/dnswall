@@ -60,6 +60,20 @@ sinkhole( request.Name == "facebook.com", MX, "127.0.0.1")
 sinkhole( response.Destination == "1.2.3.4", "127.0.0.1" )
 ```
 
+## Mark
+
+The **mark** verdict marks a request by increasing it's "evil" score and further pass it down the rules chain. This verdict may help for more fine-grained filtering support based on multiple, weighted criteria:
+
+```javascript
+// Increase the "evil" mark by 10 points and add the label "mail.ru"
+// to the request
+mark( isSubdomain(request.Name, "mail.ru"), 10, "mail.ru" )
+
+// one can later use request.Mark and hasLabel() to check for 
+// labels and the evil mark
+reject( request.Mark > 10 || request.hasLabel("mail.ru") )
+```
+
 ## Example Rules File
 
 The following example demonstrates a simple rules file:
@@ -106,16 +120,19 @@ The IP address of the client that initiated the request
 
 Type: `struct`
 
-```golang
-type Request struct {
+```typescript
+interface Request {
     // Name requested in the DNS query
-    Name string
+    Name: string
 
     // Call requested in the DNS query. Can be "IN"
-    Class string
+    Class: string
 
     // Type of resource record requested. Can be "A", "AAAA", "MX", ...
-    Type string
+    Type: string
+
+    // Checks if the request has a given label
+    hasLabel: (label: string) => boolean
 }
 ```
 
@@ -123,20 +140,23 @@ type Request struct {
 
 Type: `struct`
 
-```golang
-type Response struct {
+```typescript
+interface Response {
     // Resolved destination for the request. Holds data for all RRs
     // like A, AAAA, TXT, SRV, SOA, ...
-    Payload string
+    Payload: string
 
     // Class of the response. Mostly "IN"
-    Class string
+    Class: string
 
     // Type of resource record the response contains
-    Type string
+    Type: string
 
     // Time-To-Live for the resource record in seconds
-    Ttl int
+    Ttl: int
+
+    // Checks if the response has a given label
+    hasLabel: (label: string) => boolean
 }
 ```
 
@@ -145,16 +165,24 @@ type Response struct {
 
 #### `isSubdomain(child: string, parent: string)`
 
-Checks whether `child` is a sub-domain of `parent`.  
-Returns: `boolean`
+Returns `true` if `child` is a sub-domain of `parent`.
+
+   
+---
 
 #### `inNetwork(ip: string, net: string)`
 
 Checks wheter `ip` is in `net`. Both `ip` and `net` must either be IPv4 or IPv6 addresses using their string notation (i.e. "192.168.0.1/24" or "[::fe80:00:01]/64")
 
+   
+---
+   
 #### `inBlockList(ip|domain: string)`
 
 Checks whether the given IP or domain is marked as "bad" in one of the supported domain/IP block-lists
+
+   
+---
 
 #### `tld(domain: string)`
 
