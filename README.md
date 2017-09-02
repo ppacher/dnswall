@@ -28,26 +28,7 @@ reject(clientIP == "10.172.140.150")
 sinkhole("127.0.0.1", isSubdomain("facebook.com"))
 ```
 
-### Rules-File ###
-
-A rules file might look like the following (ONE rule per row):
-
-```javascript
-// We don't like russian domains, block all of them with REFUSED
-reject(isSubdomain(request.Name, "ru."))
-
-// Sinkhole requests to *.badmalware.cz* to our honeypod at 10.1.1.100
-sinkhole(isSubdomain(request.Name, "badmalware.cz."), "10.1.1.100")
-
-// Drop requests for master.ctic.local
-drop(request.Name == "master.ctic.local"))
-
-// accept (and handle/forward the rest)
-accept(true)
-
-// default: requests that are not matched by any rule will be REFUSED
-// reject(true)
-```
+See [docs/README.md](docs/README.md) for more information on the (planned) rule engine.
 
 ## TODOs
 
