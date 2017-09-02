@@ -1,4 +1,4 @@
-package middleware
+package server
 
 import "golang.org/x/net/context"
 import "git.vie.cybertrap.com/ppacher/dnslog/request"

@@ -7,7 +7,6 @@ import (
 	"log"
 	"sync"
 
-	"git.vie.cybertrap.com/ppacher/dnslog/middleware"
 	"git.vie.cybertrap.com/ppacher/dnslog/request"
 
 	"github.com/miekg/dns"
@@ -30,7 +29,7 @@ type DNSServer struct {
 
 	started chan struct{}
 
-	middlewares []middleware.Middleware
+	middlewares []Middleware
 
 	wg sync.WaitGroup
 }
@@ -92,7 +91,7 @@ func (srv *DNSServer) WithUDP(opts *Options) *DNSServer {
 }
 
 // Use specifies the middleware stack to use
-func (srv *DNSServer) Use(middlewares ...middleware.Middleware) *DNSServer {
+func (srv *DNSServer) Use(middlewares ...Middleware) *DNSServer {
 	srv.assertNotStarted()
 
 	srv.middlewares = append(srv.middlewares, middlewares...)
