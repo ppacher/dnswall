@@ -7,6 +7,8 @@ The rule engine of `dnslog` is similar to `iptables` in terms that it contains a
 
 # Rule verdicts
 
+A verdict is the final result of a single rule. If a rule returns a matched verdict (i.e. the verdicts condition evaluates to true) the rule engine will stop further processing rules and execute the desired rule action (thus, accepting, dropping or sinkholing the request). 
+
 ## Accept
 
 The **Accept** verdict allows the DNS request to pass the INPUT chain and be eventually resolved by one of the server's middleware.
@@ -52,8 +54,36 @@ sinkhole( isSubdomain(request.Name, "badguys.it"), "[::fe80:01]")
 
 // Sinkhole also allows matching for given request resource record
 // types
-sinkhole( request.Name == "facebook.com", "MX", "127.0.0.1")
+sinkhole( request.Name == "facebook.com", MX, "127.0.0.1")
 
 // Rewrite every response that would result in 1.2.3.4 to 127.0.0.1
 sinkhole( response.Destination == "1.2.3.4", "127.0.0.1" )
+```
+
+## Example Rules File
+
+The following example demonstrates a simple rules file:
+
+```javascript
+// we always accept DNS queries for *.local
+accept( isSubdomain(request.Name, "local.") )
+
+// make sure that WannaCry will reach it's "bail-out" domain
+sinkhole( request.Name == "xyz12adk48f721ndk4n1.mail.ru", "honeypod.local")
+
+// block all other russian sites
+reject( isSubdomain(request.Name, "ru") )
+
+// most C&C server communication and DNS tunneling use very low
+// TTLs so attackers can quickly change the C&C server location,
+// drop everything that has a TTL lower than 10 minutes
+reject( request.Ttl < 60*10 )
+
+// Sinkhole every request for which our system is 70% sure that the
+// domain has been generated automatically (Domain Generation Algorithm)
+sinkhole( request.DGAScore > 7 , "honeypod.local" )
+
+// Redirect all MX requests (for mail servers) comming from
+// 10.172.240.0/24 to mail.local
+sinkhole( inNetwork(clientIP, "10.172.240.0/24"), MX, "mail.local")
 ```
