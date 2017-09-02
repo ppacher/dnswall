@@ -77,6 +77,8 @@ reject( isSubdomain(request.Name, "ru") )
 // most C&C server communication and DNS tunneling use very low
 // TTLs so attackers can quickly change the C&C server location,
 // drop everything that has a TTL lower than 10 minutes
+// Note that this rule may cause troubles with some CDN providers
+// that use low TTLs for fast updates (which looks like a Fast-Flux DGA network ....)
 reject( request.Ttl < 60*10 )
 
 // Sinkhole every request for which our system is 70% sure that the
@@ -87,3 +89,73 @@ sinkhole( request.DGAScore > 7 , "honeypod.local" )
 // 10.172.240.0/24 to mail.local
 sinkhole( inNetwork(clientIP, "10.172.240.0/24"), MX, "mail.local")
 ```
+
+
+## Rule environment
+
+### Variables
+
+The following variables and structures are available for rule expressions:
+
+#### `clientIP`
+
+Type: `string`.  
+The IP address of the client that initiated the request
+
+#### `request`
+
+Type: `struct`
+
+```golang
+type Request struct {
+    // Name requested in the DNS query
+    Name string
+
+    // Call requested in the DNS query. Can be "IN"
+    Class string
+
+    // Type of resource record requested. Can be "A", "AAAA", "MX", ...
+    Type string
+}
+```
+
+#### `response`
+
+Type: `struct`
+
+```golang
+type Response struct {
+    // Resolved destination for the request. Holds data for all RRs
+    // like A, AAAA, TXT, SRV, SOA, ...
+    Payload string
+
+    // Class of the response. Mostly "IN"
+    Class string
+
+    // Type of resource record the response contains
+    Type string
+
+    // Time-To-Live for the resource record in seconds
+    Ttl int
+}
+```
+
+
+### Functions
+
+#### `isSubdomain(child: string, parent: string)`
+
+Checks whether `child` is a sub-domain of `parent`.  
+Returns: `boolean`
+
+#### `inNetwork(ip: string, net: string)`
+
+Checks wheter `ip` is in `net`. Both `ip` and `net` must either be IPv4 or IPv6 addresses using their string notation (i.e. "192.168.0.1/24" or "[::fe80:00:01]/64")
+
+#### `inBlockList(ip|domain: string)`
+
+Checks whether the given IP or domain is marked as "bad" in one of the supported domain/IP block-lists
+
+#### `tld(domain: string)`
+
+Returns the Top-Level-Domain (TLD) of the given domain. Note that not all TLDs may be recognized and that domain registries for "sub-domains" may also be treated as TLD (i.e. `tld("test.ac.at") == "ac.at"`)
