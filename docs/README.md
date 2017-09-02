@@ -202,11 +202,18 @@ Checks whether the given IP or domain is marked as "bad" in one of the supported
 
 Returns the Top-Level-Domain (TLD) of the given domain. Note that not all TLDs may be recognized and that domain registries for "sub-domains" may also be treated as TLD (i.e. `tld("test.ac.at") == "ac.at"`)
 
+---
+
 
 #### `isSubdomainFromList(domain: string, ...list: string)`
 
 Returns `true` if `domain` is the a sub-domain of any parent specified in `list`. `false` otherwise.
 
+---
+
 #### `inList(what: string, ...list: string)`
 
 Returns `true` if `what` is present in `list`. `false` otherwise.
+
+
+---
