@@ -81,6 +81,9 @@ The following example demonstrates a simple rules file:
 // we always accept DNS queries for *.local
 accept( isSubdomain(request.Name, "local.") )
 
+// mark every thing that is not *.local with an evil score of 1 and set the "evil-by-default" label
+mark( !isSubdomain(request.Name, "local."), 1, "evil-by-default")
+
 // make sure that WannaCry will reach it's "bail-out" domain
 sinkhole( request.Name == "xyz12adk48f721ndk4n1.mail.ru", "honeypod.local")
 
@@ -98,9 +101,21 @@ reject( request.Ttl < 60*10 )
 // domain has been generated automatically (Domain Generation Algorithm)
 sinkhole( request.DGAScore > 7 , "honeypod.local" )
 
+// Mark request with d DGAScore > 5 as more evil
+mark( request.DGAScore >= 5, 2 )
+
+// if the request is meant for some known CDN provider, decrease it's evilness and set "cdn-provider" mark
+mark( isSubdomainFromList(request.Name, "cloudfare.net", "cdn.mozilla.net", "cloud.google.com"), -2, "cdn-provider")
+
 // Redirect all MX requests (for mail servers) comming from
 // 10.172.240.0/24 to mail.local
 sinkhole( inNetwork(clientIP, "10.172.240.0/24"), MX, "mail.local")
+
+// now, reject all requests that have an evil-mark of >= 3
+reject( request.Mark >= 3)
+
+// accept the rest
+accept()
 ```
 
 
