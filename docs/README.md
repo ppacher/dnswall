@@ -207,6 +207,6 @@ Returns the Top-Level-Domain (TLD) of the given domain. Note that not all TLDs m
 
 Returns `true` if `domain` is the a sub-domain of any parent specified in `list`. `false` otherwise.
 
-### `isInList(what: string, ...list: string)`
+#### `inList(what: string, ...list: string)`
 
 Returns `true` if `what` is present in `list`. `false` otherwise.
