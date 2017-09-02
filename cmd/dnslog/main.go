@@ -30,11 +30,15 @@ func main() {
 
 	provider := zone.NewProvider(z)
 
-	r, _ := rules.NewRule("reject(isSubdomain(request.Name, 'orf.at'))")
-	input := []*rules.Rule{
-		r,
+	input, err := rules.ReadRules("/tmp/input")
+	if err != nil {
+		log.Fatal(err)
 	}
-	output := []*rules.Rule{}
+
+	output, err := rules.ReadRules("/tmp/output")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	engine := rules.NewEngine(rules.Accept{}, rules.Accept{}, input, output)
 
