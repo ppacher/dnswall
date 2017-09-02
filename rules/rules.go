@@ -2,8 +2,7 @@ package rules
 
 import (
 	"errors"
-
-	"github.com/miekg/dns"
+	"fmt"
 
 	"git.vie.cybertrap.com/ppacher/dnslog/request"
 
@@ -18,23 +17,9 @@ var functions = map[string]govaluate.ExpressionFunction{
 	"sinkhole": sinkhole,
 
 	// Utility methods
-	"isSubdomain": func(args ...interface{}) (interface{}, error) {
-		if len(args) != 2 {
-			return nil, errors.New("invalid usage of isSubdomain")
-		}
-
-		what, ok := args[0].(string)
-		if !ok {
-			return nil, errors.New("first parameter must be a string")
-		}
-
-		parent, ok := args[1].(string)
-		if !ok {
-			return nil, errors.New("second parameter must be a string")
-		}
-
-		return dns.IsSubDomain(parent, what), nil
-	},
+	"isSubdomain":         isSubdomain,
+	"inNetwork":           inNetwork,
+	"isSubdomainFromList": isSubDomainFromList,
 }
 
 type Expr struct {
@@ -87,6 +72,21 @@ func (e *Expr) Evaluate(req *request.Request) (interface{}, error) {
 	}
 
 	return e.expr.Evaluate(params)
+}
+
+// Verdict evaluates the rule and returns the final verdict
+func (e *Expr) Verdict(req *request.Request) (Verdict, error) {
+	res, err := e.Evaluate(req)
+	if err != nil {
+		return nil, err
+	}
+
+	v, ok := res.(Verdict)
+	if !ok {
+		return v, nil
+	}
+
+	return nil, fmt.Errorf("invalid result type for verdict: %#v", res)
 }
 
 // EvaluateBool evaluates the expression against the DNS request and

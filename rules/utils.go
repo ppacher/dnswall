@@ -3,128 +3,149 @@ package rules
 import (
 	"errors"
 	"fmt"
+	"net"
+	"strconv"
+	"strings"
 
 	"github.com/miekg/dns"
 )
 
-func accept(args ...interface{}) (interface{}, error) {
-	if len(args) == 0 {
-		return Accept{}, nil
-	}
-
-	if len(args) > 1 {
-		return nil, errors.New("accept(): invalid number arguments")
-	}
-
-	b, ok := args[0].(bool)
-	if !ok {
-		return nil, errors.New("accept(): wrong type for parameter 1")
-	}
-
-	if b {
-		return Accept{}, nil
-	}
-
-	return Noop{}, nil
+// IsSubDomain checks if child is a sub domain of parent
+func IsSubDomain(parent, child string) (bool, error) {
+	return dns.IsSubDomain(parent, child), nil
 }
 
-func reject(args ...interface{}) (interface{}, error) {
-	if len(args) == 0 {
-		return Reject{
-			Code: dns.RcodeRefused,
-		}, nil
+func isSubdomain(args ...interface{}) (interface{}, error) {
+	if len(args) != 2 {
+		return nil, errors.New("isSubdomain(): invalid usage of isSubdomain")
 	}
 
-	if len(args) > 2 {
-		return nil, errors.New("reject(): invalid number of arguments")
-	}
-
-	b, ok := args[0].(bool)
+	what, ok := args[0].(string)
 	if !ok {
-		return nil, errors.New("reject(): wrong type for parameter 1")
+		return nil, errors.New("isSubdomain(): first parameter must be a string")
 	}
 
-	code := dns.RcodeRefused
-
-	if len(args) == 2 {
-		c, ok := args[1].(int)
-		if !ok {
-			return nil, errors.New("reject(): wront type for parameter 2")
-		}
-
-		code = c
+	parent, ok := args[1].(string)
+	if !ok {
+		return nil, errors.New("isSubdomain(): second parameter must be a string")
 	}
 
-	if b {
-		return Reject{
-			Code: uint16(code),
-		}, nil
-	}
-
-	return Noop{}, nil
+	return IsSubDomain(parent, what)
 }
 
-func sinkhole(args ...interface{}) (interface{}, error) {
-	if len(args) < 2 {
-		return nil, errors.New("sinkhole(): invalid number of parameters")
+// InNetwork checks if target is inside network
+// `target` and `network` may be IPv4 or IPv6 address where the network is specified using
+// CIDR notation (e.g. target=192.168.0.1, network=192.168.129/25)
+// For IPv4, the network can also be in "nmap like" sub-range format
+// For example, target=192.168.0.1, network=192.168.0-10.11-100
+func InNetwork(target, network string) (bool, error) {
+	ip := net.ParseIP(target)
+	if ip == nil {
+		return false, errors.New("invalid target IP")
 	}
 
-	b, ok := args[0].(bool)
-	if !ok {
-		return nil, errors.New("sinkhole(): wrong type for parameter 1")
-	}
-
-	dest, ok := args[1].(string)
-	if !ok {
-		return nil, errors.New("sinkhole(): wrong type for parameter 2")
-	}
-
-	if b {
-		return Sinkhole{
-			Destination: dest,
-		}, nil
-	}
-
-	return Noop{}, nil
-}
-
-func mark(args ...interface{}) (interface{}, error) {
-	var labels []string
-	amount := 1
-	match := true
-
-	if len(args) >= 1 {
-		b, ok := args[0].(bool)
-		if !ok {
-			return nil, errors.New("mark(): wrong type for parameter 1")
+	// We first always try to parse RFC confirm CIDR notation
+	// e.g. 192.168.0.1/24
+	_, n, err := net.ParseCIDR(network)
+	if err != nil {
+		// if we failed to parse CIDR, we check for IPv4 sub-range notation
+		// e.g. 192.168.0-4.1-10
+		ipParts := strings.Split(target, ".")
+		if len(ipParts) != 4 {
+			return false, errors.New("invalid format for target IP (must be IPv4 for sub-range checks)")
 		}
 
-		match = b
-	}
-
-	if len(args) >= 2 {
-		a, ok := args[0].(int)
-		if !ok {
-			return nil, errors.New("mark(): wrong type for parameter 2")
+		netParts := strings.Split(network, ".")
+		if len(netParts) != 4 {
+			return false, errors.New("invalid network address. Must either be CIDR (IPv4 or IPv6) or sub-range (IPv4, eg 192.168.1-3.10-12) format")
 		}
-		amount = a
 
-		for idx, a := range args[2:] {
-			l, ok := a.(string)
-			if !ok {
-				return nil, fmt.Errorf("mark(): wrong type for parameter %d", idx+1)
+		for idx, part := range ipParts {
+			if netParts[idx] != part {
+				octet, err := strconv.ParseInt(ipParts[idx], 10, 64)
+				if err != nil {
+					return false, err
+				}
+
+				netoctets := strings.Split(netParts[idx], "-")
+				if len(netoctets) == 1 {
+					// just one octet, we should have matched during the string compare
+					return false, nil
+				}
+
+				if len(netoctets) != 2 {
+					return false, fmt.Errorf("invalid network sub-range: %v", netoctets)
+				}
+
+				lower, err := strconv.ParseInt(netoctets[0], 10, 64)
+				if err != nil {
+					return false, fmt.Errorf("invalid network sub-range: %s: %s", netoctets[0], err)
+				}
+
+				higher, err := strconv.ParseInt(netoctets[1], 10, 64)
+				if err != nil {
+					return false, fmt.Errorf("invalid network sub-range: %s: %s", netoctets[1], err)
+				}
+
+				if octet < lower || octet > higher {
+					return false, nil
+				}
 			}
+		}
+		return false, err
+	}
 
-			labels = append(labels, l)
+	return n.Contains(ip), nil
+}
+
+func inNetwork(args ...interface{}) (interface{}, error) {
+	if len(args) != 2 {
+		return nil, errors.New("inNetwork(): invalid usage")
+	}
+
+	target, ok := args[0].(string)
+	if !ok {
+		return nil, errors.New("inNetwork(): first parameter must be a string")
+	}
+
+	network, ok := args[1].(string)
+	if !ok {
+		return nil, errors.New("inNetwork(): second parameter must be a string")
+	}
+
+	return InNetwork(target, network)
+}
+
+// IsSubDomainFromList checks if child is a subdomain from one of the
+// parents
+func IsSubDomainFromList(child string, parents []string) bool {
+	for _, p := range parents {
+		if ok, err := IsSubDomain(p, child); ok && err == nil {
+			return true
 		}
 	}
+	return false
+}
 
-	if match {
-		return Mark{
-			Amount: amount,
-			Labels: labels,
-		}, nil
+func isSubDomainFromList(args ...interface{}) (interface{}, error) {
+	var list []string
+
+	for idx, a := range args {
+		s, ok := a.(string)
+
+		if !ok {
+			return nil, fmt.Errorf("isSubDomainFromList(): invalid type for parameter %d", idx)
+		}
+
+		list = append(list, s)
 	}
 
-	return Noop{}, nil
+	if len(list) < 2 {
+		return nil, fmt.Errorf("isSubDomainFromList(): invalid number of parameters")
+	}
+
+	target := list[1]
+	parents := list[1:]
+
+	return IsSubDomainFromList(target, parents), nil
 }
