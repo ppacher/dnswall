@@ -26,6 +26,40 @@ go get git.vie.cybertrap.com/ppacher/dnslog...
 go install git.vie.cybertrap.com/ppacher/dnslog/cmd/dnslog
 ```
 
+By default, `dnslog` will listen on udp://127.0.0.1:5353. To change the behavior add the `--listen (-l)` parameter.
+
+```bash
+# Start DNS server on UDP 127.0.0.1:53 and TCP 127.0.0.1:53
+./dnslog --listen udp://127.0.0.1:53 --listen tcp://127.0.0.1:53
+
+# Short cut for UDP 0.0.0.0:53 and TCP 0.0.0.0:53
+sudo ./dnslog -L
+```
+
+### Forwarders
+
+In order to forward DNS queries to en external DNS server, append the `--forwarder` parameter. Multiple forwarders can be specified:
+
+```bash
+sudo ./dnslog -L --forwarder 8.8.8.8:53 --forwarder 8.8.4.4:53
+```
+
+#### Conditional Forwarders (Split-DNS)
+
+`dnslog` also supports conditional forwarder selection (Split-DNS) by using the `--forward-if` command line parameter. It expects the following format: `<host>:<port>=<condition>` where `<condition>` has the same format as rules (see below) with the only difference that they should only return a boolean expression:
+
+```bash
+# All request for sub-domains of cybertrap.com should be resolved by
+# 10.9.1.254:53. All other requests are forwarded to 8.8.8.8:53
+sudo ./dnslog -L \
+        --forwarder 8.8.8.8:53 \
+        --forward-if "10.9.1.254:53=isSubdomain(request.Name, 'cybertrap.com')"
+
+2017/09/03 12:13:12 [forwarder] conditional server "10.9.1.254:53" selected
+2017/09/03 12:13:12 [forwarder] resolved request to "git.vie.cybertrap.com." (IN A) with: NOERROR: git.vie.cybertrap.com.	3600	IN	CNAME	srvcts07.vie.cybertrap.com.
+2017/09/03 12:13:12 [log] [::1]:44612 requested "git.vie.cybertrap.com." class=IN type=A, resolved to: git.vie.cybertrap.com.	3600	IN	CNAME	srvcts07.vie.cybertrap.com.
+```
+
 ### Zone-Files
 
 Create simple zone file in RFC1035 (bind) format:
