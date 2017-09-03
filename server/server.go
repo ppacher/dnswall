@@ -176,6 +176,8 @@ func (srv *DNSServer) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		}
 
 		if result.resp != nil {
+			result.resp.Middleware = m.Name()
+
 			if result.err == nil {
 				answer := fmt.Sprintf("%s: ", dns.RcodeToString[result.resp.Res.MsgHdr.Rcode])
 				if len(result.resp.Res.Answer) > 0 {
