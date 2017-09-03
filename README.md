@@ -92,11 +92,12 @@ sudo ./dnslog --input-rules /tmp/input --forwarder 8.8.8.8:53
 
 ## Roadmap
 
-- [ ] Middlewares: Caching
-- [ ] TCP-TLS server support
-- [ ] Zone-Storage: etcd
-- [ ] DNSSEC support and validation
-- [ ] Dynamic Updates (RFC2136)
-- [ ] Edns0 support (RFC2671 and RFC6891)
-- [ ] DNS query/response export/notification on AMQP/MQTT
-- [ ] Management-API with plug-able transport (AMQP, gRPC, HTTP, ...)
+- Middlewares: Caching
+- Transaction Signatures (TSIG); Zone-transfer (AXFR) 
+- TCP-TLS server support
+- Zone-Storage: etcd
+- DNSSEC support and validation
+- Dynamic Updates (RFC2136)
+- Edns0 support (RFC2671 and RFC6891)
+- DNS query/response export/notification on AMQP/MQTT
+- Management-API with plug-able transport (AMQP, gRPC, HTTP, ...)
