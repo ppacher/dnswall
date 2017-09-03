@@ -24,7 +24,6 @@ func (z Zone) Lookup(class dns.Class, rtype dns.Type, name dns.Name) ([]dns.RR, 
 	var results []dns.RR
 
 	for _, rr := range z.Resources {
-		log.Printf("Comparing %d=%d, %d=%d, %s=%s\n", rr.Header().Rrtype, uint16(rtype), rr.Header().Class, uint16(class), rr.Header().Name, name.String())
 		if rr.Header().Rrtype == uint16(rtype) && rr.Header().Class == uint16(class) && rr.Header().Name == name.String() {
 			results = append(results, rr)
 		}

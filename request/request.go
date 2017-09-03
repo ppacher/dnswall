@@ -13,6 +13,14 @@ type Request struct {
 	// W stores the response write to serve the request
 	W dns.ResponseWriter
 
+	// Mark holds the evil mark that may be adjusted
+	// using a rules MARK verdict
+	Mark int
+
+	// Labels are a set of string labels appended to the request
+	// Labels can be set using the MARK verdict
+	Labels []string
+
 	// Req is the actual DNS request message received
 	Req *dns.Msg
 }

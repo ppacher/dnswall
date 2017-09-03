@@ -117,6 +117,21 @@ func (ng *Engine) Serve(ctx context.Context, req *request.Request) (context.Cont
 		// Allow the request to travel down the middleware stack
 		return ctx, nil, nil
 
+	case Mark:
+		req.Mark += v.Amount
+	L:
+		for _, l := range v.Labels {
+			for _, li := range req.Labels {
+				if li == l {
+					continue L
+				}
+			}
+
+			req.Labels = append(req.Labels, l)
+		}
+		// Allow the request to travel down the middleware stack
+		return ctx, nil, nil
+
 	case Reject:
 		resp := req.CreateError(v.Code)
 		return ctx, resp, nil
@@ -139,6 +154,21 @@ func (ng *Engine) Mangle(ctx context.Context, req *request.Request, resp *dns.Ms
 
 	switch v := verdict.(type) {
 	case Noop, Accept:
+		// Nothing to do in the output chain
+		return nil
+
+	case Mark:
+		req.Mark += v.Amount
+	L:
+		for _, l := range v.Labels {
+			for _, li := range req.Labels {
+				if li == l {
+					continue L
+				}
+			}
+
+			req.Labels = append(req.Labels, l)
+		}
 		return nil
 
 	case Reject:
