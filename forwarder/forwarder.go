@@ -1,13 +1,13 @@
 package forwarder
 
 import (
-	"errors"
 	"log"
 
 	"golang.org/x/net/context"
 
 	"github.com/homebot/dnswall/request"
 	"github.com/homebot/dnswall/rules"
+	"github.com/homebot/dnswall/server"
 	"github.com/miekg/dns"
 )
 
@@ -43,7 +43,7 @@ func (f *Forwarder) Name() string {
 }
 
 // Serve the DNS request by trying to resolve the request using configured forwarders
-func (f *Forwarder) Serve(ctx context.Context, req *request.Request) (context.Context, *dns.Msg, error) {
+func (f *Forwarder) Serve(ctx context.Context, req *request.Request) server.Result {
 
 	// first, try to find a conditional forwarder
 	for srv, expr := range f.conditionalResolvers {
@@ -52,7 +52,10 @@ func (f *Forwarder) Serve(ctx context.Context, req *request.Request) (context.Co
 		if err == nil && res {
 			resp, err := dns.Exchange(req.Req, srv)
 			log.Printf("[forwarder] conditional server %q selected\n", srv)
-			return ctx, resp, err
+			if err != nil {
+				return server.Abort(ctx, err)
+			}
+			return server.Resolve(ctx, req, resp, srv)
 		} else if err != nil {
 			log.Printf("[forwarder] conditional expression for server %q failed to evalutate: %s\n", srv, err)
 		}
@@ -62,7 +65,7 @@ func (f *Forwarder) Serve(ctx context.Context, req *request.Request) (context.Co
 		resp, err := dns.Exchange(req.Req, srv)
 		if err == nil {
 			log.Printf("[forwarder] resolved query for %q using %s\n", req.Name(), srv)
-			return ctx, resp, nil
+			return server.Resolve(ctx, req, resp, srv)
 		}
 
 		log.Printf("[forwarder] %s: failed to resolve %q: %s\n", srv, req.Name(), err)
@@ -70,7 +73,7 @@ func (f *Forwarder) Serve(ctx context.Context, req *request.Request) (context.Co
 
 	log.Printf("[forwarder] failed to serve request for %q. No servers available\n", req.Name())
 
-	return ctx, nil, errors.New("all servers failed to serve the request")
+	return server.FailOrNext(ctx)
 }
 
 // Mangle is a NOP for the forwarder middleware

@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/dnswall/request"
+	"github.com/homebot/dnswall/server"
 	"github.com/miekg/dns"
 )
 
@@ -28,8 +29,8 @@ func (Persister) Name() string {
 }
 
 // Serve implements server.Middleware
-func (p *Persister) Serve(ctx context.Context, req *request.Request) (context.Context, *dns.Msg, error) {
-	return ctx, nil, nil
+func (p *Persister) Serve(ctx context.Context, req *request.Request) server.Result {
+	return server.FailOrNext(ctx)
 }
 
 // Mangle implements server.Middleware and stores the conversation in the backend

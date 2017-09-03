@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/dnswall/request"
+	"github.com/homebot/dnswall/server"
 	"github.com/miekg/dns"
 )
 
@@ -106,16 +107,16 @@ func (ng *Engine) Name() string {
 }
 
 // Serve serves a DNS request by evaluating the INPUT chain
-func (ng *Engine) Serve(ctx context.Context, req *request.Request) (context.Context, *dns.Msg, error) {
+func (ng *Engine) Serve(ctx context.Context, req *request.Request) server.Result {
 	verdict, err := ng.input.Verdict(req, nil)
 	if err != nil {
-		return ctx, nil, err
+		return server.Abort(ctx, err)
 	}
 
 	switch v := verdict.(type) {
 	case Noop, Accept:
 		// Allow the request to travel down the middleware stack
-		return ctx, nil, nil
+		return server.FailOrNext(ctx)
 
 	case Mark:
 		req.Mark += v.Amount
@@ -130,19 +131,19 @@ func (ng *Engine) Serve(ctx context.Context, req *request.Request) (context.Cont
 			req.Labels = append(req.Labels, l)
 		}
 		// Allow the request to travel down the middleware stack
-		return ctx, nil, nil
+		return server.FailOrNext(ctx)
 
 	case Reject:
 		resp := req.CreateError(v.Code)
-		return ctx, resp, nil
+		return server.Resolve(ctx, req, resp, "reject")
 
 	case Sinkhole:
 		// TODO(ppacher): create response object and send it back
 		resp := req.CreateError(dns.RcodeNotImplemented)
-		return ctx, resp, nil
+		return server.Resolve(ctx, req, resp, "sinkhole")
 	}
 
-	return nil, nil, nil
+	return server.FailOrNext(ctx)
 }
 
 // Mangle mangles the response to a DNS request by evaluating the output chain

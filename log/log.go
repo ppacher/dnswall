@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/dnswall/request"
+	"github.com/homebot/dnswall/server"
 	"github.com/miekg/dns"
 )
 
@@ -16,8 +17,8 @@ func (*LogMiddleware) Name() string {
 	return "log"
 }
 
-func (*LogMiddleware) Serve(ctx context.Context, req *request.Request) (context.Context, *dns.Msg, error) {
-	return ctx, nil, nil
+func (*LogMiddleware) Serve(ctx context.Context, req *request.Request) server.Result {
+	return server.FailOrNext(ctx)
 }
 
 func (*LogMiddleware) Mangle(ctx context.Context, req *request.Request, response *dns.Msg) error {

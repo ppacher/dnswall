@@ -1,9 +1,12 @@
 package zone
 
 import (
+	"fmt"
+
 	"golang.org/x/net/context"
 
 	"github.com/homebot/dnswall/request"
+	"github.com/homebot/dnswall/server"
 	"github.com/miekg/dns"
 )
 
@@ -24,13 +27,13 @@ func (p *Provider) Name() string {
 }
 
 // Serve serves the DNS request and implements middleware.Middleware
-func (p *Provider) Serve(ctx context.Context, req *request.Request) (context.Context, *dns.Msg, error) {
+func (p *Provider) Serve(ctx context.Context, req *request.Request) server.Result {
 	for _, zone := range p.zones {
 		if dns.IsSubDomain(zone.Name.String(), req.Name().String()) {
 			rr, ok := zone.Lookup(req.Class(), req.Type(), req.Name())
 			if !ok {
 				resp := req.CreateError(dns.RcodeNameError)
-				return ctx, resp, nil
+				return server.Resolve(ctx, req, resp, fmt.Sprintf("zone:%s", zone.Name))
 			}
 
 			resp := new(dns.Msg)
@@ -41,12 +44,12 @@ func (p *Provider) Serve(ctx context.Context, req *request.Request) (context.Con
 				resp.Answer[idx] = r
 			}
 
-			return ctx, resp, nil
+			return server.Resolve(ctx, req, resp, fmt.Sprintf("zone:%s", zone.Name))
 		}
 	}
 
 	// Nothing found, continue middleware stack
-	return ctx, nil, nil
+	return server.FailOrNext(ctx)
 }
 
 // Mangle does nothing in the zone provider and implements middleware.Middleware

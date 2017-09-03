@@ -166,37 +166,39 @@ func (srv *DNSServer) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}
 
 	for idx, m := range srv.middlewares {
-		nctx, resp, err := m.Serve(ctx, r)
+		result := m.Serve(ctx, r)
 
 		// if an error is returned, abort
-		if err != nil {
-			resp = r.CreateError(dns.RcodeServerFailure)
+		if result.err != nil {
+			result.resp = &request.Response{
+				Res: r.CreateError(dns.RcodeServerFailure),
+			}
 		}
 
-		if resp != nil {
-			if err == nil {
-				answer := fmt.Sprintf("%s: ", dns.RcodeToString[resp.MsgHdr.Rcode])
-				if len(resp.Answer) > 0 {
-					answer += fmt.Sprintf("%s", resp.Answer[0].String())
+		if result.resp != nil {
+			if result.err == nil {
+				answer := fmt.Sprintf("%s: ", dns.RcodeToString[result.resp.Res.MsgHdr.Rcode])
+				if len(result.resp.Res.Answer) > 0 {
+					answer += fmt.Sprintf("%s", result.resp.Res.Answer[0].String())
 				}
 
 				log.Printf("[%s] resolved request to %q (%s %s) with: %s\n", m.Name(), r.Name(), r.Class(), r.Type(), answer)
 			} else {
-				log.Printf("[%s] aborted request to %q (%s %s) with error %s\n", m.Name(), r.Name(), r.Class(), r.Type(), err)
+				log.Printf("[%s] aborted request to %q (%s %s) with error %s\n", m.Name(), r.Name(), r.Class(), r.Type(), result.err)
 			}
 
 			for i := idx; i >= 0; i-- {
 				mangler := srv.middlewares[i]
 
-				mangler.Mangle(ctx, r, resp)
+				mangler.Mangle(ctx, r, result.resp.Res)
 			}
 
-			w.WriteMsg(resp)
+			w.WriteMsg(result.resp.Res)
 			return
 		}
 
-		if nctx != nil {
-			ctx = nctx
+		if result.ctx != nil {
+			ctx = result.ctx
 		}
 	}
 
