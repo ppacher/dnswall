@@ -53,6 +53,6 @@ func (p *Provider) Serve(ctx context.Context, req *request.Request) server.Resul
 }
 
 // Mangle does nothing in the zone provider and implements middleware.Middleware
-func (p *Provider) Mangle(ctx context.Context, req *request.Request, response *dns.Msg) error {
+func (p *Provider) Mangle(ctx context.Context, req *request.Request, response request.Response) error {
 	return nil
 }

@@ -77,6 +77,6 @@ func (f *Forwarder) Serve(ctx context.Context, req *request.Request) server.Resu
 }
 
 // Mangle is a NOP for the forwarder middleware
-func (f *Forwarder) Mangle(context.Context, *request.Request, *dns.Msg) error {
+func (f *Forwarder) Mangle(context.Context, *request.Request, request.Response) error {
 	return nil
 }

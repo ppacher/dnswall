@@ -1,8 +1,10 @@
 package server
 
-import "golang.org/x/net/context"
-import "github.com/homebot/dnswall/request"
-import "github.com/miekg/dns"
+import (
+	"github.com/homebot/dnswall/request"
+	"github.com/miekg/dns"
+	"golang.org/x/net/context"
+)
 
 // Middleware is a middleware for DNS servers
 type Middleware interface {
@@ -18,15 +20,17 @@ type Middleware interface {
 
 	// Mangle is called for each middleware that have served a request but
 	// not provided a response or error
-	Mangle(context.Context, *request.Request, *dns.Msg) error
+	Mangle(context.Context, *request.Request, request.Response) error
 }
 
+// Result is the result of a middleware
 type Result struct {
 	ctx  context.Context
 	err  error
 	resp *request.Response
 }
 
+// Resolve resolves the DNS request and should be used by middleware implementations
 func Resolve(ctx context.Context, req *request.Request, resp *dns.Msg, args ...string) Result {
 	result := Result{
 		ctx: ctx,
@@ -52,12 +56,15 @@ func Resolve(ctx context.Context, req *request.Request, resp *dns.Msg, args ...s
 	return result
 }
 
+// FailOrNext fails the request if no more middleware handler is available
+// Otherwise, the request is passed to the next middleware
 func FailOrNext(ctx context.Context) Result {
 	return Result{
 		ctx: ctx,
 	}
 }
 
+// Abort aborts the reqeust and returns SERVEFAIL
 func Abort(ctx context.Context, err error) Result {
 	return Result{
 		ctx: ctx,

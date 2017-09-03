@@ -8,7 +8,6 @@ import (
 
 	"github.com/homebot/dnswall/request"
 	"github.com/homebot/dnswall/server"
-	"github.com/miekg/dns"
 )
 
 type LogMiddleware struct{}
@@ -21,10 +20,10 @@ func (*LogMiddleware) Serve(ctx context.Context, req *request.Request) server.Re
 	return server.FailOrNext(ctx)
 }
 
-func (*LogMiddleware) Mangle(ctx context.Context, req *request.Request, response *dns.Msg) error {
+func (*LogMiddleware) Mangle(ctx context.Context, req *request.Request, response request.Response) error {
 	answer := "Not Resolved"
-	if response != nil && len(response.Answer) > 0 {
-		answer = fmt.Sprintf("%s", response.Answer[0].String())
+	if response.Res != nil && len(response.Res.Answer) > 0 {
+		answer = fmt.Sprintf("%s", response.Res.Answer[0].String())
 	}
 
 	log.Printf("[log] %s requested %q class=%s type=%s, resolved to: %s", req.RemoteAddr().String(), req.Name(), req.Class(), req.Type(), answer)

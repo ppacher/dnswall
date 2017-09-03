@@ -190,7 +190,7 @@ func (srv *DNSServer) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			for i := idx; i >= 0; i-- {
 				mangler := srv.middlewares[i]
 
-				mangler.Mangle(ctx, r, result.resp.Res)
+				mangler.Mangle(ctx, r, *result.resp)
 			}
 
 			w.WriteMsg(result.resp.Res)

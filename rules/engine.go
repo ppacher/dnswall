@@ -147,8 +147,8 @@ func (ng *Engine) Serve(ctx context.Context, req *request.Request) server.Result
 }
 
 // Mangle mangles the response to a DNS request by evaluating the output chain
-func (ng *Engine) Mangle(ctx context.Context, req *request.Request, resp *dns.Msg) error {
-	verdict, err := ng.output.Verdict(req, resp)
+func (ng *Engine) Mangle(ctx context.Context, req *request.Request, response request.Response) error {
+	verdict, err := ng.output.Verdict(req, response.Res)
 	if err != nil {
 		return err
 	}
@@ -173,14 +173,14 @@ func (ng *Engine) Mangle(ctx context.Context, req *request.Request, resp *dns.Ms
 		return nil
 
 	case Reject:
-		resp.Rcode = v.Code
-		resp.Answer = nil
-		resp.Extra = nil
+		response.Res.Rcode = v.Code
+		response.Res.Answer = nil
+		response.Res.Extra = nil
 		return nil
 
 	case Sinkhole:
 		// TODO(ppacher): creat response objcet and send it back
-		resp.Rcode = dns.RcodeNotImplemented
+		response.Res.Rcode = dns.RcodeNotImplemented
 		return nil
 	}
 

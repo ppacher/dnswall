@@ -34,13 +34,10 @@ func (p *Persister) Serve(ctx context.Context, req *request.Request) server.Resu
 }
 
 // Mangle implements server.Middleware and stores the conversation in the backend
-func (p *Persister) Mangle(ctx context.Context, req *request.Request, resp *dns.Msg) error {
+func (p *Persister) Mangle(ctx context.Context, req *request.Request, response request.Response) error {
 	conv := Conversation{
 		Request: req,
-		Response: &request.Response{
-			Res:        resp,
-			Middleware: "not-yet-available",
-		},
+		Respones: response,
 		Time: time.Now(),
 	}
 
