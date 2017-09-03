@@ -8,11 +8,11 @@ import (
 
 	"github.com/alecthomas/kingpin"
 
-	"git.vie.cybertrap.com/ppacher/dnslog/forwarder"
-	logMw "git.vie.cybertrap.com/ppacher/dnslog/log"
-	"git.vie.cybertrap.com/ppacher/dnslog/rules"
-	"git.vie.cybertrap.com/ppacher/dnslog/server"
-	"git.vie.cybertrap.com/ppacher/dnslog/zone"
+	"github.com/homebot/dnswall/forwarder"
+	logMw "github.com/homebot/dnswall/log"
+	"github.com/homebot/dnswall/rules"
+	"github.com/homebot/dnswall/server"
+	"github.com/homebot/dnswall/zone"
 )
 
 var (

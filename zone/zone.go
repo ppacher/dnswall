@@ -12,7 +12,7 @@ import (
 // Zone holds a DNS zone
 type Zone struct {
 	// Name holds the name of the DNS zone
-	// e.g. cybertrap.com.
+	// e.g. example.com.
 	Name dns.Name
 
 	// Resources holds resources for the zone

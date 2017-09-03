@@ -1,8 +1,8 @@
-# Rule Handling
+# Rule Engine
 
 Rules are evaluable expressions executed in the context of a DNS request or response and are used to perform fine grained filtering and mangeling of DNS messages. The rule expressions are based on [govaluate](https://github.com/Knetic/govaluate).
 
-The rule engine of `dnslog` is similar to `iptables` in terms that it contains an INPUT and OUTPUT chain. The INPUT chain is evaluated for each DNS request and can accept, filter, sinkhole and reject DNS requests. The OUTPUT chain is evaluated for each DNS response (and the respective DNS request) and can be used to drop responses that should not be forwarded to the client.
+The rule engine of `dnswall` is similar to `iptables` in terms that it contains an INPUT and OUTPUT chain. The INPUT chain is evaluated for each DNS request and can accept, filter, sinkhole and reject DNS requests. The OUTPUT chain is evaluated for each DNS response (and the respective DNS request) and can be used to drop responses that should not be forwarded to the client.
 
 # Rule verdicts
 
@@ -15,11 +15,11 @@ The **Accept** verdict allows the DNS request to pass the INPUT chain and be eve
 To use the **Accept** verdict, use the provided `accept()` method passing a boolean condition:
 
 ```javascript
-// Accept all requests that go for "cybertrap.com"
-accept( request.Name == "cybertrap.com" )
+// Accept all requests that go for "example.com"
+accept( request.Name == "example.com" )
 
-// Accept all requests for cybertrap.com or any sub-domain
-accept( isSubdomain(request.Name, "cybertrap.com") )
+// Accept all requests for example.com or any sub-domain
+accept( isSubdomain(request.Name, "example.com") )
 ```
 
 ## Reject

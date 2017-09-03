@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"git.vie.cybertrap.com/ppacher/dnslog/request"
+	"github.com/homebot/dnswall/request"
 
 	"github.com/Knetic/govaluate"
 	"github.com/miekg/dns"

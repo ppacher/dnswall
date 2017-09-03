@@ -7,7 +7,7 @@ import (
 	"log"
 	"sync"
 
-	"git.vie.cybertrap.com/ppacher/dnslog/request"
+	"github.com/homebot/dnswall/request"
 
 	"github.com/miekg/dns"
 )

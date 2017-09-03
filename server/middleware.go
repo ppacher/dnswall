@@ -1,7 +1,7 @@
 package server
 
 import "golang.org/x/net/context"
-import "git.vie.cybertrap.com/ppacher/dnslog/request"
+import "github.com/homebot/dnswall/request"
 import "github.com/miekg/dns"
 
 // Middleware is a middleware for DNS servers

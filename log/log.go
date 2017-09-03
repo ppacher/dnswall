@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"git.vie.cybertrap.com/ppacher/dnslog/request"
+	"github.com/homebot/dnswall/request"
 	"github.com/miekg/dns"
 )
 
