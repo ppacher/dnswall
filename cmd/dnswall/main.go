@@ -8,6 +8,7 @@ import (
 
 	"github.com/alecthomas/kingpin"
 
+	"github.com/homebot/dnswall/cache"
 	"github.com/homebot/dnswall/forwarder"
 	logMw "github.com/homebot/dnswall/log"
 	"github.com/homebot/dnswall/rules"
@@ -115,6 +116,9 @@ func main() {
 
 		stack = append(stack, zone.NewProvider(z))
 	}
+
+	cacheMw := cache.New()
+	stack = append(stack, cacheMw)
 
 	conditionalForwarders := make(map[string]string)
 

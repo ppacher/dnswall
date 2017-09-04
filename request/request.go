@@ -8,6 +8,12 @@ import (
 	"github.com/miekg/dns"
 )
 
+var (
+	// ErrNotSigned is returned by IsSignatureValid() if the request is not
+	// signed
+	ErrNotSigned = errors.New("request not signed")
+)
+
 // Request is a DNS request
 type Request struct {
 	// W stores the response write to serve the request
@@ -111,6 +117,26 @@ func (r Request) Validate() []error {
 	return errs
 }
 
+// IsSigned returns true if the request is signed
+func (r Request) IsSigned() bool {
+	return r.Req.IsTsig() != nil
+}
+
+// IsSignatureValid returns nil if the request is signed and the signature
+// is valid, an appropriate error otherwise
+func (r Request) IsSignatureValid() error {
+	if !r.IsSigned() {
+		return ErrNotSigned
+	}
+
+	return r.W.TsigStatus()
+}
+
+// GetTsig returns the TSIG resource record if available
+func (r Request) GetTsig() *dns.TSIG {
+	return r.Req.IsTsig()
+}
+
 // IsValid returns true if the request is valid and can be served
 func (r Request) IsValid() bool {
 	return len(r.Validate()) == 0
@@ -149,4 +175,15 @@ func (r Request) CreateError(rcode int) *dns.Msg {
 	m.SetRcode(r.Req, rcode)
 
 	return m
+}
+
+// CreateResponse creates a response message for the request
+// If the request has been signed, the response will be signed
+// using the same TSIG key and secret
+func (r Request) CreateResponse(rcode int, answer []dns.RR, extra []dns.RR) *dns.Msg {
+	m := new(dns.Msg)
+
+	m.SetReply(r.Req)
+
+	m.Rcode = rcode
 }

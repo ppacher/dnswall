@@ -45,12 +45,21 @@ func (f *Forwarder) Name() string {
 // Serve the DNS request by trying to resolve the request using configured forwarders
 func (f *Forwarder) Serve(ctx context.Context, req *request.Request) server.Result {
 
+	copy := new(dns.Msg)
+	req.Req.CopyTo(copy)
+
+	if tsig := copy.IsTsig(); tsig != nil {
+		// we need to clear out the Transaction signature before forwarding the request
+		// to any forwarder
+		copy.Extra = copy.Extra[:len(copy.Extra)-1]
+	}
+
 	// first, try to find a conditional forwarder
 	for srv, expr := range f.conditionalResolvers {
 		res, err := expr.EvaluateBool(req, nil)
 
 		if err == nil && res {
-			resp, err := dns.Exchange(req.Req, srv)
+			resp, err := dns.Exchange(copy, srv)
 			log.Printf("[forwarder] conditional server %q selected\n", srv)
 			if err != nil {
 				return server.Abort(ctx, err)
@@ -62,7 +71,7 @@ func (f *Forwarder) Serve(ctx context.Context, req *request.Request) server.Resu
 	}
 
 	for _, srv := range f.Servers {
-		resp, err := dns.Exchange(req.Req, srv)
+		resp, err := dns.Exchange(copy, srv)
 		if err == nil {
 			log.Printf("[forwarder] resolved query for %q using %s\n", req.Name(), srv)
 			return server.Resolve(ctx, req, resp, srv)
