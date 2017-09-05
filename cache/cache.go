@@ -93,7 +93,7 @@ L:
 		name := dns.Name(answer.Header().Name).String()
 
 		for _, rr := range c.records[name] {
-			if rr.Header().Rrtype == answer.Header().Rrtype && rr.Header().Class == answer.Header().Class {
+			if rr.Header().Rrtype == answer.Header().Rrtype && rr.Header().Class == answer.Header().Class && answer.Header().Ttl > 0 {
 				continue L
 			}
 		}
