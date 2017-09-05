@@ -4,15 +4,23 @@ import (
 	"context"
 	"errors"
 	"net"
+	"time"
 
 	"github.com/homebot/dnswall/request"
 	"github.com/miekg/dns"
 )
 
 var (
-	ErrEnded     = errors.New("ended")
+	// ErrEnded is returns when the session has been marked as ended
+	ErrEnded = errors.New("ended")
+
+	// ErrNotServed is returned when no middleware handler has been able to solve the request
 	ErrNotServed = errors.New("failed to serve request")
 )
+
+// CompleteFunc can be registered on a session and is called once the session has been
+// resolved by a middleware
+type CompleteFunc func(sess *Session, req *request.Request, res *dns.Msg)
 
 // Session holds metadata and additional information for
 // the request being served
@@ -32,6 +40,22 @@ type Session struct {
 	res *dns.Msg
 
 	ended bool
+
+	onComplete []CompleteFunc
+}
+
+// Current returns the name of the current middlware being executed
+func (s *Session) Current() string {
+	if s.i > len(s.handlers) {
+		return ""
+	}
+
+	return s.handlers[s.i].Name()
+}
+
+// OnComplete registers a new complete handler
+func (s *Session) OnComplete(fn CompleteFunc) {
+	s.onComplete = append(s.onComplete, fn)
 }
 
 // NewSession returns a new session for the request
@@ -78,7 +102,7 @@ func (s *Session) Hijack() {
 // Close the session
 func (s *Session) Close() error {
 	s.ended = true
-	return s.W.Close()
+	return s.w.Close()
 }
 
 // TsigStatus implements dns.ResponseWriter
@@ -87,14 +111,14 @@ func (s *Session) TsigStatus() error {
 }
 
 // TsigTimersOnly implements dns.ResponseWriter
-func (s *Session) TsigTimersOnly(b bool) error {
-	return s.w.TsigTimersOnly(b)
+func (s *Session) TsigTimersOnly(b bool) {
+	s.w.TsigTimersOnly(b)
 }
 
 // Prepare prepares a response message for the request
 func (s *Session) Prepare() *dns.Msg {
 	m := new(dns.Msg)
-	m.SetReply(s.req)
+	m.SetReply(s.req.Req)
 
 	return m
 }
@@ -120,14 +144,28 @@ func (s *Session) Run(ctx context.Context) error {
 
 	if s.res == nil {
 		// we failed to serve it
-
 		m := new(dns.Msg)
-		m.SetRcode(s.req, dns.RcodeServerFailure)
+		m.SetRcode(s.req.Req, dns.RcodeServerFailure)
 
 		s.res = m
 	}
 
-	return s.w.WriteMsg(m)
+	// execute complete handlers
+	for _, fn := range s.onComplete {
+		fn(s, s.req, s.res)
+	}
+
+	// if the request has been signed (and validated) using TSIG, will
+	// sign the response as well
+	if tsig := s.req.Req.IsTsig(); tsig != nil && s.w.TsigStatus() == nil {
+		// check if the middleware has already attached a TSIG RR
+		if s.res.IsTsig() == nil {
+			// actuall signing will be done during WriteMsg()
+			s.res.SetTsig(tsig.Header().Name, tsig.Algorithm, tsig.Fudge, time.Now().Unix())
+		}
+	}
+
+	return s.w.WriteMsg(s.res)
 }
 
 // Next calls the next handler in the middleware stack
@@ -136,7 +174,6 @@ func (s *Session) Next() error {
 	if s.ended {
 		return ErrEnded
 	}
-	s.ended = true
 
 	s.i++
 
@@ -146,7 +183,7 @@ func (s *Session) Next() error {
 	}
 
 	// Call the next handler in the stack
-	return s.handlers[si].Serve(s, s.req)
+	return s.handlers[s.i].Serve(s, s.req)
 }
 
 // ResolveWith sets the response for the session and ends it
@@ -163,17 +200,30 @@ func (s *Session) ResolveWith(r *dns.Msg) error {
 
 // Reject rejects the DNS request with the given RCode and
 // ends the session
-func (s *Session) Reject(rcode uint16) error {
+func (s *Session) Reject(rcode int) error {
 	m := new(dns.Msg)
-	m.SetRcode(s.req, rcode)
+	m.SetRcode(s.req.Req, rcode)
 
 	return s.ResolveWith(m)
 }
 
-// Resolve resolves the request and ends the session
-func (s *Session) Resolve(rcode uint16, answers []dns.RR, extra []dns.RR) error {
+// RejectError rejects the request with the given RCode and returns the error
+// to the server
+func (s *Session) RejectError(rcode int, err error) error {
 	m := new(dns.Msg)
-	m.SetReply(rcode)
+	m.SetRcode(s.req.Req, rcode)
+
+	if re := s.ResolveWith(m); re != nil {
+		return re
+	}
+
+	return err
+}
+
+// Resolve resolves the request and ends the session
+func (s *Session) Resolve(rcode int, answers []dns.RR, extra []dns.RR) error {
+	m := new(dns.Msg)
+	m.SetRcode(s.req.Req, rcode)
 
 	m.Answer = answers
 	m.Extra = extra

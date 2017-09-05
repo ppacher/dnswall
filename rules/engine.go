@@ -4,10 +4,8 @@ import (
 	"log"
 	"sync"
 
-	"golang.org/x/net/context"
-
+	"github.com/homebot/dnswall"
 	"github.com/homebot/dnswall/request"
-	"github.com/homebot/dnswall/server"
 	"github.com/miekg/dns"
 )
 
@@ -107,17 +105,18 @@ func (ng *Engine) Name() string {
 }
 
 // Serve serves a DNS request by evaluating the INPUT chain
-func (ng *Engine) Serve(ctx context.Context, req *request.Request) server.Result {
+func (ng *Engine) Serve(session *dnswall.Session, req *request.Request) error {
 	verdict, err := ng.input.Verdict(req, nil)
 	if err != nil {
-		return server.Abort(ctx, err)
+		return session.RejectError(dns.RcodeRefused, err)
 	}
+
+	// set complete handler to invoke rules in the output chain
+	session.OnComplete(ng.onComplete)
 
 	switch v := verdict.(type) {
 	case Noop, Accept:
-		// Allow the request to travel down the middleware stack
-		return server.FailOrNext(ctx)
-
+		break
 	case Mark:
 		req.Mark += v.Amount
 	L:
@@ -130,34 +129,33 @@ func (ng *Engine) Serve(ctx context.Context, req *request.Request) server.Result
 
 			req.Labels = append(req.Labels, l)
 		}
-		// Allow the request to travel down the middleware stack
-		return server.FailOrNext(ctx)
 
 	case Reject:
-		resp := req.CreateError(v.Code)
-		return server.Resolve(ctx, req, resp, "reject")
+		return session.Reject(dns.RcodeRefused)
 
 	case Sinkhole:
 		// TODO(ppacher): create response object and send it back
-		resp := req.CreateError(dns.RcodeNotImplemented)
-		return server.Resolve(ctx, req, resp, "sinkhole")
+		return session.Reject(dns.RcodeNotImplemented)
 	}
 
-	return server.FailOrNext(ctx)
+	return session.Next()
 }
 
 // Mangle mangles the response to a DNS request by evaluating the output chain
-func (ng *Engine) Mangle(ctx context.Context, req *request.Request, response request.Response) error {
-	verdict, err := ng.output.Verdict(req, response.Res)
+func (ng *Engine) onComplete(session *dnswall.Session, req *request.Request, res *dns.Msg) {
+	verdict, err := ng.output.Verdict(req, res)
 	if err != nil {
-		return err
+		// TODO: log error
+		// clear the response message and set RcodRefused
+		res.Answer = nil
+		res.Extra = nil
+		res.Rcode = dns.RcodeRefused
+		return
 	}
 
 	switch v := verdict.(type) {
 	case Noop, Accept:
 		// Nothing to do in the output chain
-		return nil
-
 	case Mark:
 		req.Mark += v.Amount
 	L:
@@ -170,19 +168,14 @@ func (ng *Engine) Mangle(ctx context.Context, req *request.Request, response req
 
 			req.Labels = append(req.Labels, l)
 		}
-		return nil
 
 	case Reject:
-		response.Res.Rcode = v.Code
-		response.Res.Answer = nil
-		response.Res.Extra = nil
-		return nil
+		res.Rcode = v.Code
+		res.Answer = nil
+		res.Extra = nil
 
 	case Sinkhole:
 		// TODO(ppacher): creat response objcet and send it back
-		response.Res.Rcode = dns.RcodeNotImplemented
-		return nil
+		res.Rcode = dns.RcodeNotImplemented
 	}
-
-	return nil
 }

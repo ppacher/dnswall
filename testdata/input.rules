@@ -1,0 +1,2 @@
+reject( isSubdomain(request.Name, 'foobar.example.com') )
+accept( isSubdomain(request.Name, 'example.com') )

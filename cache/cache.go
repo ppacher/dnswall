@@ -5,10 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
-
+	"github.com/homebot/dnswall"
 	"github.com/homebot/dnswall/request"
-	"github.com/homebot/dnswall/server"
 	"github.com/miekg/dns"
 )
 
@@ -53,55 +51,43 @@ func New() *Cache {
 // Name returns "cache" and implements server.Middleware
 func (*Cache) Name() string { return "cache" }
 
-// Serve serves a DNS request from the cache if possible, otherwise it returns FailOrNext()
-func (c *Cache) Serve(ctx context.Context, req *request.Request) server.Result {
+func (c *Cache) Serve(session *dnswall.Session, req *request.Request) error {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 
 	rrs, ok := c.records[req.Name().String()]
 	if ok {
-		var result []RR
+		var result []dns.RR
 		for _, rr := range rrs {
 			if rr.Valid() && rr.Header().Rrtype == uint16(req.Type()) && rr.Header().Class == uint16(req.Class()) {
-				result = append(result, rr)
+				result = append(result, rr.RR)
 			}
 		}
 
 		if len(result) > 0 {
-			resp := new(dns.Msg)
-			resp.SetReply(req.Req)
-
-			resp.Answer = make([]dns.RR, len(result))
-			for idx, r := range result {
-				resp.Answer[idx] = r
-			}
-
-			return server.Resolve(ctx, req, resp, "cache")
+			return session.Resolve(dns.RcodeSuccess, result, nil)
 		}
 	}
 
-	return server.FailOrNext(ctx)
+	// register on Complete handler to cache new RRs
+	session.OnComplete(c.onComplete)
+
+	return session.Next()
 }
 
-// Mangle stores new RRs in the cache and implements server.Middleware
-func (c *Cache) Mangle(ctx context.Context, request *request.Request, response request.Response) error {
-	if response.Middleware == "cache" {
-		return nil
-	}
-
+func (c *Cache) onComplete(session *dnswall.Session, request *request.Request, response *dns.Msg) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 
-	if response.Res != nil {
-		c.cacheRRs(response.Res.Answer)
-		c.cacheRRs(response.Res.Extra)
+	if response != nil {
+		c.cacheRRs(response.Answer)
+		c.cacheRRs(response.Extra)
 	}
-
-	return nil
 }
 
 func (c *Cache) cacheRRs(rrs []dns.RR) {
 L:
+	// TODO: there are devils inside
 	for _, answer := range rrs {
 		var newRRs []RR
 		name := dns.Name(answer.Header().Name).String()

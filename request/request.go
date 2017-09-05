@@ -176,14 +176,3 @@ func (r Request) CreateError(rcode int) *dns.Msg {
 
 	return m
 }
-
-// CreateResponse creates a response message for the request
-// If the request has been signed, the response will be signed
-// using the same TSIG key and secret
-func (r Request) CreateResponse(rcode int, answer []dns.RR, extra []dns.RR) *dns.Msg {
-	m := new(dns.Msg)
-
-	m.SetReply(r.Req)
-
-	m.Rcode = rcode
-}

@@ -7,6 +7,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/homebot/dnswall"
 	"github.com/homebot/dnswall/request"
 
 	"github.com/miekg/dns"
@@ -29,7 +30,7 @@ type DNSServer struct {
 
 	started chan struct{}
 
-	middlewares []Middleware
+	middlewares []dnswall.Middleware
 
 	wg sync.WaitGroup
 }
@@ -64,6 +65,9 @@ func (srv *DNSServer) WithTCP(opts *Options) *DNSServer {
 		ReadTimeout:  opts.ReadTimeout,
 		WriteTimeout: opts.WriteTimeout,
 		Handler:      srv,
+		TsigSecret: map[string]string{
+			"test.": "dGVzdAo=",
+		},
 	}
 	srv.tcpErr = make(chan error, 1)
 
@@ -84,6 +88,9 @@ func (srv *DNSServer) WithUDP(opts *Options) *DNSServer {
 		ReadTimeout:  opts.ReadTimeout,
 		WriteTimeout: opts.WriteTimeout,
 		Handler:      srv,
+		TsigSecret: map[string]string{
+			"test.": "dGVzdAo=",
+		},
 	}
 	srv.udpErr = make(chan error, 1)
 
@@ -91,7 +98,7 @@ func (srv *DNSServer) WithUDP(opts *Options) *DNSServer {
 }
 
 // Use specifies the middleware stack to use
-func (srv *DNSServer) Use(middlewares ...Middleware) *DNSServer {
+func (srv *DNSServer) Use(middlewares ...dnswall.Middleware) *DNSServer {
 	srv.assertNotStarted()
 
 	srv.middlewares = append(srv.middlewares, middlewares...)
@@ -165,50 +172,13 @@ func (srv *DNSServer) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		Req: req,
 	}
 
-	for idx, m := range srv.middlewares {
-		result := m.Serve(ctx, r)
+	session := dnswall.NewSession(srv.middlewares, r, w)
 
-		// if an error is returned, abort
-		if result.err != nil {
-			result.resp = &request.Response{
-				Res: r.CreateError(dns.RcodeServerFailure),
-			}
-		}
-
-		if result.resp != nil {
-			result.resp.Middleware = m.Name()
-
-			if result.err == nil {
-				answer := fmt.Sprintf("%s: ", dns.RcodeToString[result.resp.Res.MsgHdr.Rcode])
-				if len(result.resp.Res.Answer) > 0 {
-					answer += fmt.Sprintf("%s", result.resp.Res.Answer[0].String())
-				}
-
-				log.Printf("[%s] resolved request to %q (%s %s) with: %s\n", m.Name(), r.Name(), r.Class(), r.Type(), answer)
-			} else {
-				log.Printf("[%s] aborted request to %q (%s %s) with error %s\n", m.Name(), r.Name(), r.Class(), r.Type(), result.err)
-			}
-
-			for i := idx; i >= 0; i-- {
-				mangler := srv.middlewares[i]
-
-				mangler.Mangle(ctx, r, *result.resp)
-			}
-
-			w.WriteMsg(result.resp.Res)
-			return
-		}
-
-		if result.ctx != nil {
-			ctx = result.ctx
-		}
+	if err := session.Run(ctx); err != nil {
+		log.Printf("Failed to serve session: %s", err)
+	} else {
+		log.Printf("session resolved by middleware %q", session.Current())
 	}
-
-	// if we got here, none of our middleware handlers have been able to
-	// serve the request, aborting ...
-
-	resp := r.CreateError(dns.RcodeServerFailure)
-	w.WriteMsg(resp)
 
 	return
 }

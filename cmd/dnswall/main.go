@@ -8,9 +8,9 @@ import (
 
 	"github.com/alecthomas/kingpin"
 
+	"github.com/homebot/dnswall"
 	"github.com/homebot/dnswall/cache"
 	"github.com/homebot/dnswall/forwarder"
-	logMw "github.com/homebot/dnswall/log"
 	"github.com/homebot/dnswall/rules"
 	"github.com/homebot/dnswall/server"
 	"github.com/homebot/dnswall/zone"
@@ -82,9 +82,7 @@ func main() {
 		})
 	}
 
-	stack := []server.Middleware{
-		&logMw.LogMiddleware{},
-	}
+	stack := []dnswall.Middleware{}
 	var err error
 
 	// Rule middleware
