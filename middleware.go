@@ -178,8 +178,7 @@ func (s *Session) Next() error {
 	s.i++
 
 	if s.i >= len(s.handlers) {
-		s.ended = true
-		return ErrNotServed
+		return s.RejectError(dns.RcodeServerFailure, ErrNotServed)
 	}
 
 	// Call the next handler in the stack
