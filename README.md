@@ -1,3 +1,9 @@
+## Project archived, please checkout:
+### - https://github.com/safing/portmaster for a privacy preserving application firewall
+### - https://github.com/coredns/coredns for a multi-purpose DNS server
+
+<hr>
+
 # dnswall
 
 `dnswall` is a configurable DNS server with support for middleware chains. It contains an expression based rule engine for sinkholing,
